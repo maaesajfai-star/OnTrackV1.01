@@ -1,0 +1,39 @@
+import { ConfigService } from '@nestjs/config';
+import { TypeOrmModuleOptions } from '@nestjs/typeorm';
+import { DataSource, DataSourceOptions } from 'typeorm';
+
+export const typeOrmConfig = (
+  configService: ConfigService,
+): TypeOrmModuleOptions => ({
+  type: 'postgres',
+  host: configService.get('POSTGRES_HOST', 'localhost'),
+  port: configService.get('POSTGRES_PORT', 5432),
+  username: configService.get('POSTGRES_USER', 'uems_user'),
+  password: configService.get('POSTGRES_PASSWORD'),
+  database: configService.get('POSTGRES_DB', 'uems_db'),
+  entities: [__dirname + '/../**/*.entity{.ts,.js}'],
+  migrations: [__dirname + '/../database/migrations/*{.ts,.js}'],
+  synchronize: configService.get('NODE_ENV') === 'development',
+  logging: configService.get('NODE_ENV') === 'development',
+  ssl: configService.get('NODE_ENV') === 'production' ? { rejectUnauthorized: false } : false,
+  extra: {
+    max: configService.get('DB_POOL_MAX', 10),
+    min: configService.get('DB_POOL_MIN', 2),
+    connectionTimeoutMillis: configService.get('DB_CONNECTION_TIMEOUT', 30000),
+  },
+});
+
+// DataSource for migrations
+export const dataSourceOptions: DataSourceOptions = {
+  type: 'postgres',
+  host: process.env.POSTGRES_HOST || 'localhost',
+  port: parseInt(process.env.POSTGRES_PORT || '5432'),
+  username: process.env.POSTGRES_USER || 'uems_user',
+  password: process.env.POSTGRES_PASSWORD,
+  database: process.env.POSTGRES_DB || 'uems_db',
+  entities: [__dirname + '/../**/*.entity{.ts,.js}'],
+  migrations: [__dirname + '/../database/migrations/*{.ts,.js}'],
+};
+
+const dataSource = new DataSource(dataSourceOptions);
+export default dataSource;
