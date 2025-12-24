@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import * as pdfParse from 'pdf-parse';
+import pdfParse from 'pdf-parse';
 import * as fs from 'fs';
 
 @Injectable()

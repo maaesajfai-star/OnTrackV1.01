@@ -11,9 +11,9 @@ export class NextcloudService {
   private webdavUrl: string;
 
   constructor(private configService: ConfigService) {
-    this.baseUrl = this.configService.get('NEXTCLOUD_URL');
-    this.adminUser = this.configService.get('NEXTCLOUD_ADMIN_USER');
-    this.adminPassword = this.configService.get('NEXTCLOUD_ADMIN_PASSWORD');
+    this.baseUrl = this.configService.get<string>('NEXTCLOUD_URL') || 'http://localhost:8080';
+    this.adminUser = this.configService.get<string>('NEXTCLOUD_ADMIN_USER') || 'admin';
+    this.adminPassword = this.configService.get<string>('NEXTCLOUD_ADMIN_PASSWORD') || 'admin';
     this.webdavUrl = `${this.baseUrl}/remote.php/dav`;
   }
 
