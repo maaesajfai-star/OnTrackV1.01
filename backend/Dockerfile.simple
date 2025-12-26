@@ -1,27 +1,27 @@
-# Simplified Dockerfile for Backend - Fixes cache and startup issues
+# Simplified Dockerfile for Backend - Development Mode (No Build Required)
 
 FROM node:20-alpine
 
-# Install netcat for health checks and wait-for scripts
-RUN apk add --no-cache netcat-openbsd postgresql-client
+# Install dependencies for wait scripts and debugging
+RUN apk add --no-cache netcat-openbsd postgresql-client curl
 
 WORKDIR /app
 
-# Copy package files
+# Copy package files first (for better caching)
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production=false
+# Install ALL dependencies (including devDependencies for development)
+RUN npm ci
 
 # Copy source code
 COPY . .
 
-# Copy entrypoint script
+# Copy and set up entrypoint script
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Expose port
 EXPOSE 3001
 
-# Set entrypoint
+# Set entrypoint (will run migrations and start dev server)
 ENTRYPOINT ["docker-entrypoint.sh"]

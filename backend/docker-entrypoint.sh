@@ -18,10 +18,11 @@ sleep 5
 echo "📦 Running database migrations..."
 npm run migration:run || echo "⚠️  Migrations failed or already applied"
 
-# Run database initialization (creates admin if needed)
-echo "👤 Initializing database..."
-npm run db:init || echo "⚠️  Database init failed or admin already exists"
+# Run database seeding (creates admin if needed)
+echo "👤 Creating admin user..."
+npm run seed || echo "⚠️  Seed failed or admin already exists"
 
-# Start the application
-echo "🎯 Starting NestJS application..."
+# Start the application in development mode (no build required)
+echo "🎯 Starting NestJS application in watch mode..."
+echo "   (TypeScript will compile on-the-fly)"
 exec npm run start:dev
