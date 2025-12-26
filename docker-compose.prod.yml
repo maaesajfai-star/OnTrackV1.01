@@ -1,7 +1,17 @@
 version: '3.8'
 
+# Production Docker Compose for UEMS
+# This configuration is optimized for production deployment with:
+# - Multi-stage production builds
+# - Resource limits and reservations
+# - Security hardening
+# - Production-grade health checks
+# - Optimized logging
+
 services:
+  # ==========================================
   # PostgreSQL Database for UEMS
+  # ==========================================
   postgres:
     image: postgres:16-alpine
     container_name: uems-postgres-prod
@@ -11,22 +21,82 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_INITDB_ARGS: "-E UTF8 --locale=en_US.UTF-8"
+      # Production performance tuning
+      POSTGRES_MAX_CONNECTIONS: 200
+      POSTGRES_SHARED_BUFFERS: 512MB
+      POSTGRES_EFFECTIVE_CACHE_SIZE: 2GB
+      POSTGRES_WORK_MEM: 16MB
+      POSTGRES_MAINTENANCE_WORK_MEM: 128MB
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./backend/database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - uems-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
     deploy:
       resources:
         limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
           memory: 1G
-          cpus: '1.0'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
 
+  # ==========================================
+  # Redis Cache for UEMS
+  # ==========================================
+  redis:
+    image: redis:7-alpine
+    container_name: uems-redis-prod
+    restart: always
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD}
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+      --appendfsync everysec
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+      --loglevel notice
+    volumes:
+      - redis-data:/data
+    networks:
+      - uems-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 768M
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # ==========================================
   # PostgreSQL Database for NextCloud
+  # ==========================================
   nextcloud-db:
     image: postgres:16-alpine
     container_name: uems-nextcloud-db-prod
@@ -35,22 +105,34 @@ services:
       POSTGRES_USER: ${NEXTCLOUD_DB_USER}
       POSTGRES_PASSWORD: ${NEXTCLOUD_DB_PASSWORD}
       POSTGRES_DB: ${NEXTCLOUD_DB_NAME}
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=en_US.UTF-8"
     volumes:
       - nextcloud-db-data:/var/lib/postgresql/data
     networks:
       - uems-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${NEXTCLOUD_DB_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U ${NEXTCLOUD_DB_USER} -d ${NEXTCLOUD_DB_NAME}"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
     deploy:
       resources:
         limits:
-          memory: 512M
+          cpus: '1'
+          memory: 1G
+        reservations:
           cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
 
+  # ==========================================
   # NextCloud Application
+  # ==========================================
   nextcloud:
     image: nextcloud:28-apache
     container_name: uems-nextcloud-prod
@@ -62,17 +144,25 @@ services:
       POSTGRES_PASSWORD: ${NEXTCLOUD_DB_PASSWORD}
       NEXTCLOUD_ADMIN_USER: ${NEXTCLOUD_ADMIN_USER}
       NEXTCLOUD_ADMIN_PASSWORD: ${NEXTCLOUD_ADMIN_PASSWORD}
-      NEXTCLOUD_TRUSTED_DOMAINS: ${PRODUCTION_DOMAIN:-localhost}
+      NEXTCLOUD_TRUSTED_DOMAINS: ${NEXTCLOUD_TRUSTED_DOMAINS}
       OVERWRITEPROTOCOL: https
-      OVERWRITEHOST: ${PRODUCTION_DOMAIN:-localhost}
+      OVERWRITEHOST: ${DOMAIN_NAME}
+      OVERWRITECLIURL: https://${DOMAIN_NAME}
       APACHE_DISABLE_REWRITE_IP: 1
       TRUSTED_PROXIES: nginx
+      # Production performance optimization
+      PHP_MEMORY_LIMIT: 1G
+      PHP_UPLOAD_LIMIT: 10G
+      REDIS_HOST: redis
+      REDIS_HOST_PASSWORD: ${REDIS_PASSWORD}
     volumes:
       - nextcloud-data:/var/www/html
       - nextcloud-apps:/var/www/html/custom_apps
       - nextcloud-config:/var/www/html/config
     depends_on:
       nextcloud-db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - uems-network
@@ -81,37 +171,73 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+      start_period: 120s
     deploy:
       resources:
         limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
           memory: 1G
-          cpus: '1.0'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
 
-  # Backend API (NestJS)
+  # ==========================================
+  # Backend API (NestJS) - Production
+  # ==========================================
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
       target: production
+      cache_from:
+        - uems-backend:production
+      args:
+        NODE_ENV: production
+    image: uems-backend:production
     container_name: uems-backend-prod
     restart: always
     environment:
       NODE_ENV: production
+      # Database configuration
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
+      # Redis configuration
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      # JWT configuration
       JWT_SECRET: ${JWT_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-3600}
+      JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:-604800}
+      # NextCloud integration
       NEXTCLOUD_URL: http://nextcloud
       NEXTCLOUD_ADMIN_USER: ${NEXTCLOUD_ADMIN_USER}
       NEXTCLOUD_ADMIN_PASSWORD: ${NEXTCLOUD_ADMIN_PASSWORD}
+      # Application configuration
+      BACKEND_PORT: 3001
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      # Security
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      RATE_LIMIT_TTL: ${RATE_LIMIT_TTL:-60}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-100}
     volumes:
+      # Persistent uploads
       - ./uploads:/app/uploads
-      - ./logs:/app/logs
+      # Logs
+      - ./logs/backend:/app/logs
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       nextcloud:
         condition: service_healthy
@@ -122,36 +248,73 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 60s
     deploy:
       resources:
         limits:
+          cpus: '2'
           memory: 1G
-          cpus: '1.0'
-      replicas: 2
+        reservations:
+          cpus: '1'
+          memory: 512M
+      replicas: 1
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
 
-  # Frontend (Next.js)
+  # ==========================================
+  # Frontend (Next.js) - Production
+  # ==========================================
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       target: production
+      cache_from:
+        - uems-frontend:production
+      args:
+        NODE_ENV: production
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_NEXTCLOUD_URL: ${NEXT_PUBLIC_NEXTCLOUD_URL}
+    image: uems-frontend:production
     container_name: uems-frontend-prod
     restart: always
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_API_URL: https://${PRODUCTION_DOMAIN:-localhost}/api/v1
-      NEXT_PUBLIC_NEXTCLOUD_URL: https://${PRODUCTION_DOMAIN:-localhost}/nextcloud
+      NEXT_TELEMETRY_DISABLED: 1
+      PORT: 3000
+      HOSTNAME: "0.0.0.0"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       - uems-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     deploy:
       resources:
         limits:
+          cpus: '1'
           memory: 512M
+        reservations:
           cpus: '0.5'
+          memory: 256M
+      replicas: 1
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
 
-  # Nginx Reverse Proxy with SSL
+  # ==========================================
+  # Nginx Reverse Proxy - Production
+  # ==========================================
   nginx:
     image: nginx:alpine
     container_name: uems-nginx-prod
@@ -160,13 +323,20 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      # SSL certificates (required for production)
       - ./nginx/ssl:/etc/nginx/ssl:ro
+      # Let's Encrypt certificates (if using certbot)
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
     depends_on:
-      - backend
-      - frontend
-      - nextcloud
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+      nextcloud:
+        condition: service_healthy
     networks:
       - uems-network
     healthcheck:
@@ -174,20 +344,79 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 20s
     deploy:
       resources:
         limits:
+          cpus: '1'
           memory: 256M
-          cpus: '0.5'
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
 
+  # ==========================================
+  # Certbot for SSL (Optional)
+  # ==========================================
+  certbot:
+    image: certbot/certbot:latest
+    container_name: uems-certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    networks:
+      - uems-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# ==========================================
+# Networks
+# ==========================================
 networks:
   uems-network:
     driver: bridge
     name: uems-network-prod
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.21.0.0/16
 
+# ==========================================
+# Volumes
+# ==========================================
 volumes:
+  # PostgreSQL data
   postgres-data:
+    name: uems-postgres-data-prod
+    driver: local
+
+  # Redis data
+  redis-data:
+    name: uems-redis-data-prod
+    driver: local
+
+  # NextCloud PostgreSQL data
   nextcloud-db-data:
+    name: uems-nextcloud-db-data-prod
+    driver: local
+
+  # NextCloud application data
   nextcloud-data:
+    name: uems-nextcloud-data-prod
+    driver: local
+
   nextcloud-apps:
+    name: uems-nextcloud-apps-prod
+    driver: local
+
   nextcloud-config:
+    name: uems-nextcloud-config-prod
+    driver: local

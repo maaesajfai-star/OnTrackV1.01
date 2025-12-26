@@ -1,7 +1,13 @@
 version: '3.8'
 
+# Optimized Docker Compose for UEMS Development Environment
+# This configuration includes Redis caching, proper health checks,
+# optimized build caching, and correct dependency management
+
 services:
+  # ==========================================
   # PostgreSQL Database for UEMS
+  # ==========================================
   postgres:
     image: postgres:16-alpine
     container_name: uems-postgres
@@ -11,20 +17,62 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-uems_secure_password}
       POSTGRES_DB: ${POSTGRES_DB:-uems_db}
       POSTGRES_INITDB_ARGS: "-E UTF8 --locale=en_US.UTF-8"
+      # Performance tuning for development
+      POSTGRES_MAX_CONNECTIONS: 100
+      POSTGRES_SHARED_BUFFERS: 256MB
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ./backend/database/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./backend/database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     networks:
       - uems-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-uems_user}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-uems_user} -d ${POSTGRES_DB:-uems_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
+  # ==========================================
+  # Redis Cache for UEMS
+  # ==========================================
+  redis:
+    image: redis:7-alpine
+    container_name: uems-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --save 60 1
+      --loglevel warning
+    volumes:
+      - redis-data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    networks:
+      - uems-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ==========================================
   # PostgreSQL Database for NextCloud
+  # ==========================================
   nextcloud-db:
     image: postgres:16-alpine
     container_name: uems-nextcloud-db
@@ -33,17 +81,26 @@ services:
       POSTGRES_USER: ${NEXTCLOUD_DB_USER:-nextcloud}
       POSTGRES_PASSWORD: ${NEXTCLOUD_DB_PASSWORD:-nextcloud_secure_password}
       POSTGRES_DB: ${NEXTCLOUD_DB_NAME:-nextcloud}
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=en_US.UTF-8"
     volumes:
       - nextcloud-db-data:/var/lib/postgresql/data
     networks:
       - uems-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${NEXTCLOUD_DB_USER:-nextcloud}"]
+      test: ["CMD-SHELL", "pg_isready -U ${NEXTCLOUD_DB_USER:-nextcloud} -d ${NEXTCLOUD_DB_NAME:-nextcloud}"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
+  # ==========================================
   # NextCloud Application
+  # ==========================================
   nextcloud:
     image: nextcloud:28-apache
     container_name: uems-nextcloud
@@ -61,6 +118,9 @@ services:
       OVERWRITECLIURL: http://localhost
       APACHE_DISABLE_REWRITE_IP: 1
       TRUSTED_PROXIES: nginx
+      # Performance optimization
+      PHP_MEMORY_LIMIT: 512M
+      PHP_UPLOAD_LIMIT: 10G
     volumes:
       - nextcloud-data:/var/www/html
       - nextcloud-apps:/var/www/html/custom_apps
@@ -75,86 +135,153 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
+  # ==========================================
   # Backend API (NestJS)
+  # ==========================================
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
       target: development
+      cache_from:
+        - uems-backend:latest
+      args:
+        NODE_ENV: development
+    image: uems-backend:latest
     container_name: uems-backend
     restart: unless-stopped
     environment:
       NODE_ENV: ${NODE_ENV:-development}
+      # Database configuration
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       POSTGRES_USER: ${POSTGRES_USER:-uems_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-uems_secure_password}
       POSTGRES_DB: ${POSTGRES_DB:-uems_db}
+      # Redis configuration
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      # JWT configuration
       JWT_SECRET: ${JWT_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-3600}
+      JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:-604800}
+      # NextCloud integration
       NEXTCLOUD_URL: http://nextcloud
       NEXTCLOUD_ADMIN_USER: ${NEXTCLOUD_ADMIN_USER:-admin}
       NEXTCLOUD_ADMIN_PASSWORD: ${NEXTCLOUD_ADMIN_PASSWORD:-admin_secure_password}
+      # Application configuration
       BACKEND_PORT: ${BACKEND_PORT:-3001}
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
     volumes:
-      - ./backend:/app
-      - /app/node_modules
-      - ./uploads:/app/uploads
+      # Bind mount for hot-reload in development
+      - ./backend:/app:cached
+      # Named volumes for node_modules to prevent host conflicts
+      - backend-node-modules:/app/node_modules
+      # Persistent uploads
+      - ./uploads:/app/uploads:delegated
+      # Logs
+      - ./logs/backend:/app/logs:delegated
     ports:
       - "${BACKEND_PORT:-3001}:3001"
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
       nextcloud:
         condition: service_healthy
     networks:
       - uems-network
-    command: npm run start:dev
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:3001/api/v1/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
+  # ==========================================
   # Frontend (Next.js)
+  # ==========================================
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       target: development
+      cache_from:
+        - uems-frontend:latest
+      args:
+        NODE_ENV: development
+    image: uems-frontend:latest
     container_name: uems-frontend
     restart: unless-stopped
     environment:
       NODE_ENV: ${NODE_ENV:-development}
-      NEXT_PUBLIC_API_URL: http://localhost/api/v1
-      NEXT_PUBLIC_NEXTCLOUD_URL: http://localhost/nextcloud
+      # API configuration
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost/api/v1}
+      NEXT_PUBLIC_NEXTCLOUD_URL: ${NEXT_PUBLIC_NEXTCLOUD_URL:-http://localhost/nextcloud}
+      # Next.js configuration
+      NEXT_TELEMETRY_DISABLED: 1
     volumes:
-      - ./frontend:/app
-      - /app/node_modules
-      - /app/.next
+      # Bind mount for hot-reload in development
+      - ./frontend:/app:cached
+      # Named volumes for node_modules and .next to prevent host conflicts
+      - frontend-node-modules:/app/node_modules
+      - frontend-next:/app/.next
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       - uems-network
-    command: npm run dev
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
+  # ==========================================
   # Nginx Reverse Proxy
+  # ==========================================
   nginx:
     image: nginx:alpine
     container_name: uems-nginx
     restart: unless-stopped
     ports:
       - "${NGINX_PORT:-80}:80"
+      - "${NGINX_SSL_PORT:-443}:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      # For SSL certificates (optional)
+      - ./nginx/ssl:/etc/nginx/ssl:ro
     depends_on:
-      - backend
-      - frontend
-      - nextcloud
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+      nextcloud:
+        condition: service_healthy
     networks:
       - uems-network
     healthcheck:
@@ -162,20 +289,68 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
+# ==========================================
+# Networks
+# ==========================================
 networks:
   uems-network:
     driver: bridge
     name: uems-network
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16
 
+# ==========================================
+# Volumes
+# ==========================================
 volumes:
+  # PostgreSQL data
   postgres-data:
     name: uems-postgres-data
+    driver: local
+
+  # Redis data
+  redis-data:
+    name: uems-redis-data
+    driver: local
+
+  # NextCloud PostgreSQL data
   nextcloud-db-data:
     name: uems-nextcloud-db-data
+    driver: local
+
+  # NextCloud application data
   nextcloud-data:
     name: uems-nextcloud-data
+    driver: local
+
   nextcloud-apps:
     name: uems-nextcloud-apps
+    driver: local
+
   nextcloud-config:
     name: uems-nextcloud-config
+    driver: local
+
+  # Backend node_modules volume (prevents conflicts with host)
+  backend-node-modules:
+    name: uems-backend-node-modules
+    driver: local
+
+  # Frontend node_modules volume (prevents conflicts with host)
+  frontend-node-modules:
+    name: uems-frontend-node-modules
+    driver: local
+
+  # Frontend .next build cache
+  frontend-next:
+    name: uems-frontend-next
+    driver: local
