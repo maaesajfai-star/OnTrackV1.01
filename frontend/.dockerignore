@@ -2,7 +2,7 @@
 node_modules
 npm-debug.log
 yarn-error.log
-package-lock.json
+# package-lock.json is REQUIRED for npm ci - do not ignore!
 yarn.lock
 
 # Next.js build output
