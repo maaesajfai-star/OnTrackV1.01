@@ -211,13 +211,24 @@ docker compose restart backend
 2. Check that `.env` contains `JWT_SECRET=...`
 3. Restart Docker containers: `docker compose restart backend`
 
-### "Package-lock.json not found"
+### "Package-lock.json not found" or "failed to calculate checksum of ref"
 
-**Symptom**: Docker build fails looking for package-lock.json
+**Symptom**: Docker build fails with:
+- "failed to calculate checksum of ref" when copying package files
+- "COPY failed: file not found in build context"
 
-**Status**: ✅ **RESOLVED** - Files exist in both backend/ and frontend/
+**Status**: ✅ **RESOLVED** - Fixed in commit 08f7d68
+
+**Root Cause**: .dockerignore was excluding package-lock.json files
+
+**Solution Applied**:
+- Removed package-lock.json from .dockerignore exclusions
+- Files now properly copied during Docker build
+- npm ci can now use package-lock.json for reproducible builds
 
 ### Frontend Build Errors
+
+**Symptom**: next.config.js rewrite error with undefined API URL
 
 **Status**: ✅ **RESOLVED** - Fixed in commit 342f628
 
