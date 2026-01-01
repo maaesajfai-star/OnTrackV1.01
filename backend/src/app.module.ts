@@ -26,13 +26,15 @@ import { typeOrmConfig } from './config/typeorm.config';
       inject: [ConfigService],
     }),
 
-    // Rate limiting
+    // Rate limiting (Throttler v5 syntax)
     ThrottlerModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        ttl: config.get('RATE_LIMIT_TTL', 60),
-        limit: config.get('RATE_LIMIT_MAX', 100),
+        throttlers: [{
+          ttl: config.get('RATE_LIMIT_TTL', 60000), // milliseconds (v5 uses ms, not seconds)
+          limit: config.get('RATE_LIMIT_MAX', 100),
+        }],
       }),
     }),
 

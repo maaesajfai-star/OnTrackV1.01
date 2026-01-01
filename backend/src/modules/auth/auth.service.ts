@@ -128,7 +128,7 @@ export class AuthService {
   }
 
   async logout(userId: string) {
-    await this.userRepository.update(userId, { refreshToken: null });
+    await this.userRepository.update(userId, { refreshToken: null as any });
     return { message: 'Logged out successfully' };
   }
 }
