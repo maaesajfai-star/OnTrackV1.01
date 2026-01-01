@@ -39,7 +39,7 @@ export const typeOrmConfig = (
     database: configService.get('POSTGRES_DB', 'ontrack_db'),
     entities: entitiesPath,
     migrations: migrationsPath,
-    synchronize: false,
+    synchronize: isDevelopment, // Auto-create tables in development, NEVER in production
     migrationsRun: false,
     logging: isDevelopment ? ['error', 'warn', 'migration'] : ['error'],
     ssl: configService.get('NODE_ENV') === 'production' ? { rejectUnauthorized: false } : false,
