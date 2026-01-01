@@ -148,7 +148,7 @@ services:
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile.simple
+      dockerfile: Dockerfile
     container_name: ontrack-backend
     restart: unless-stopped
     env_file:
@@ -178,14 +178,10 @@ services:
       BACKEND_PORT: ${BACKEND_PORT:-3001}
       LOG_LEVEL: ${LOG_LEVEL:-debug}
     volumes:
-      # Bind mount for hot-reload in development
-      - ./backend:/app:cached
-      # Named volumes for node_modules to prevent host conflicts
-      - backend-node-modules:/app/node_modules
-      # Persistent uploads
-      - ./uploads:/app/uploads:delegated
+      # Persistent uploads only (no source code bind mounts)
+      - backend-uploads:/app/uploads
       # Logs
-      - ./logs/backend:/app/logs:delegated
+      - backend-logs:/app/logs
     ports:
       - "${BACKEND_PORT:-3001}:3001"
     depends_on:
@@ -215,7 +211,7 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.simple
+      dockerfile: Dockerfile
     container_name: ontrack-frontend
     restart: unless-stopped
     env_file:
@@ -227,12 +223,7 @@ services:
       NEXT_PUBLIC_NEXTCLOUD_URL: ${NEXT_PUBLIC_NEXTCLOUD_URL:-http://localhost/nextcloud}
       # Next.js configuration
       NEXT_TELEMETRY_DISABLED: 1
-    volumes:
-      # Bind mount for hot-reload in development
-      - ./frontend:/app:cached
-      # Named volumes for node_modules and .next to prevent host conflicts
-      - frontend-node-modules:/app/node_modules
-      - frontend-next:/app/.next
+    # No volumes needed - everything built into image
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     depends_on:
@@ -332,17 +323,11 @@ volumes:
     name: ontrack-nextcloud-config
     driver: local
 
-  # Backend node_modules volume (prevents conflicts with host)
-  backend-node-modules:
-    name: ontrack-backend-node-modules
+  # Backend uploads and logs
+  backend-uploads:
+    name: ontrack-backend-uploads
     driver: local
 
-  # Frontend node_modules volume (prevents conflicts with host)
-  frontend-node-modules:
-    name: ontrack-frontend-node-modules
-    driver: local
-
-  # Frontend .next build cache
-  frontend-next:
-    name: ontrack-frontend-next
+  backend-logs:
+    name: ontrack-backend-logs
     driver: local

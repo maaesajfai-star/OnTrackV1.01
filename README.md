@@ -104,43 +104,35 @@ OnTrack is a comprehensive, production-ready enterprise management system that u
 - 4GB RAM minimum (8GB recommended)
 - 20GB available disk space
 
-### Installation
+### Installation (3 Steps)
 
-1. **Clone the repository**:
+After cloning this repository, run these 3 commands:
+
 ```bash
-git clone <repository-url>
-cd claude-Version1
+# 1. Generate .env file with secure secrets
+./setup-env.sh
+
+# 2. Start the application
+docker compose up -d
+
+# 3. Verify it's running
+curl http://localhost/api/v1/health
 ```
 
-2. **Configure environment**:
-```bash
-cp .env.example .env
-# Edit .env with your configuration
-```
-
-3. **Start the application**:
-```bash
-docker-compose up -d
-```
-
-4. **Initialize database**:
-```bash
-docker-compose exec backend npm run migration:run
-docker-compose exec backend npm run seed
-```
-
-5. **Access the application**:
+**Done!** Access the application at:
 - **Frontend**: http://localhost
 - **API Documentation**: http://localhost/api/docs
 - **NextCloud**: http://localhost/nextcloud
+
+📖 **For detailed setup instructions**, see [FIRST_TIME_SETUP.md](FIRST_TIME_SETUP.md)
 
 ### Default Credentials
 
 | Role | Username | Email | Password |
 |------|----------|-------|----------|
 | Admin | Admin | admin@ontrack.local | AdminAdmin@123 |
-| HR Manager | hrmanager | hr@ontrack.com | HR@123456 |
-| Sales User | salesuser | sales@ontrack.com | Sales@123456 |
+
+⚠️ **IMPORTANT**: Change the admin password immediately after first login!
 
 ## Project Structure
 

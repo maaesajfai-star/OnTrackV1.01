@@ -7,11 +7,6 @@ echo "🚀 Starting OnTrack Backend..."
 echo "📋 Environment: NODE_ENV=${NODE_ENV:-not set}"
 echo "📋 Working directory: $(pwd)"
 
-# Clean any previous build artifacts to prevent syntax errors
-echo "🧹 Cleaning build artifacts..."
-rm -rf /app/dist /app/build /app/.nest
-echo "✓ Build artifacts cleaned"
-
 # Ensure NODE_ENV is set for TypeORM
 export NODE_ENV="${NODE_ENV:-development}"
 echo "✓ NODE_ENV set to: $NODE_ENV"
@@ -61,8 +56,7 @@ else
   echo "⚠️  Seed failed - admin user may already exist"
 fi
 
-# Start the application in development mode (no build required)
-echo "🎯 Starting NestJS application in watch mode..."
-echo "   (TypeScript will compile on-the-fly)"
+# Start the application (built version in dist/)
+echo "🎯 Starting NestJS application..."
 echo ""
-exec npm run start:dev
+exec npm run start:prod
