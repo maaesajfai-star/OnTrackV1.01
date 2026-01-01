@@ -4,15 +4,22 @@
 FROM node:20-alpine
 
 # Install system dependencies
-RUN apk add --no-cache curl
+RUN apk add --no-cache \
+    curl \
+    python3 \
+    make \
+    g++
 
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies (use install instead of ci for flexibility)
-RUN npm install --legacy-peer-deps
+# Clean npm cache and install dependencies with fallback
+RUN npm cache clean --force && \
+    (npm install --legacy-peer-deps || \
+     npm install --force || \
+     npm install --no-optional --legacy-peer-deps)
 
 # Copy source code
 COPY . .

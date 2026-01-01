@@ -8,15 +8,21 @@ RUN apk add --no-cache \
     netcat-openbsd \
     postgresql-client \
     curl \
-    bash
+    bash \
+    python3 \
+    make \
+    g++
 
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies (use install instead of ci for flexibility)
-RUN npm install --legacy-peer-deps --production=false
+# Clean npm cache and install dependencies with fallback
+RUN npm cache clean --force && \
+    (npm install --legacy-peer-deps --production=false || \
+     npm install --force --production=false || \
+     npm install --no-optional --legacy-peer-deps --production=false)
 
 # Copy entrypoint script
 COPY docker-entrypoint.sh /usr/local/bin/
