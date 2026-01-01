@@ -102,7 +102,7 @@ services:
   # NextCloud Application
   # ==========================================
   nextcloud:
-    image: nextcloud:28-apache
+    image: nextcloud:31-apache
     container_name: uems-nextcloud
     restart: unless-stopped
     environment:
