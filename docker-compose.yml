@@ -1,21 +1,21 @@
 version: '3.8'
 
-# Optimized Docker Compose for UEMS Development Environment
+# Optimized Docker Compose for OnTrack Development Environment
 # This configuration includes Redis caching, proper health checks,
 # optimized build caching, and correct dependency management
 
 services:
   # ==========================================
-  # PostgreSQL Database for UEMS
+  # PostgreSQL Database for OnTrack
   # ==========================================
   postgres:
     image: postgres:16-alpine
-    container_name: uems-postgres
+    container_name: ontrack-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-uems_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-uems_secure_password}
-      POSTGRES_DB: ${POSTGRES_DB:-uems_db}
+      POSTGRES_USER: ${POSTGRES_USER:-ontrack_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ontrack_secure_password}
+      POSTGRES_DB: ${POSTGRES_DB:-ontrack_db}
       POSTGRES_INITDB_ARGS: "-E UTF8 --locale=en_US.UTF-8"
       # Performance tuning for development
       POSTGRES_MAX_CONNECTIONS: 100
@@ -26,9 +26,9 @@ services:
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     networks:
-      - uems-network
+      - ontrack-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-uems_user} -d ${POSTGRES_DB:-uems_db}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ontrack_user} -d ${POSTGRES_DB:-ontrack_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -40,11 +40,11 @@ services:
         max-file: "3"
 
   # ==========================================
-  # Redis Cache for UEMS
+  # Redis Cache for OnTrack
   # ==========================================
   redis:
     image: redis:7-alpine
-    container_name: uems-redis
+    container_name: ontrack-redis
     restart: unless-stopped
     command: >
       redis-server
@@ -57,7 +57,7 @@ services:
     ports:
       - "${REDIS_PORT:-6379}:6379"
     networks:
-      - uems-network
+      - ontrack-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -75,7 +75,7 @@ services:
   # ==========================================
   nextcloud-db:
     image: postgres:16-alpine
-    container_name: uems-nextcloud-db
+    container_name: ontrack-nextcloud-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${NEXTCLOUD_DB_USER:-nextcloud}
@@ -85,7 +85,7 @@ services:
     volumes:
       - nextcloud-db-data:/var/lib/postgresql/data
     networks:
-      - uems-network
+      - ontrack-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${NEXTCLOUD_DB_USER:-nextcloud} -d ${NEXTCLOUD_DB_NAME:-nextcloud}"]
       interval: 10s
@@ -103,7 +103,7 @@ services:
   # ==========================================
   nextcloud:
     image: nextcloud:31-apache
-    container_name: uems-nextcloud
+    container_name: ontrack-nextcloud
     restart: unless-stopped
     environment:
       POSTGRES_HOST: nextcloud-db
@@ -129,7 +129,7 @@ services:
       nextcloud-db:
         condition: service_healthy
     networks:
-      - uems-network
+      - ontrack-network
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:80/status.php || exit 1"]
       interval: 30s
@@ -149,17 +149,17 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.simple
-    image: uems-backend:latest
-    container_name: uems-backend
+    image: ontrack-backend:latest
+    container_name: ontrack-backend
     restart: unless-stopped
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       # Database configuration
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
-      POSTGRES_USER: ${POSTGRES_USER:-uems_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-uems_secure_password}
-      POSTGRES_DB: ${POSTGRES_DB:-uems_db}
+      POSTGRES_USER: ${POSTGRES_USER:-ontrack_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ontrack_secure_password}
+      POSTGRES_DB: ${POSTGRES_DB:-ontrack_db}
       # Redis configuration
       REDIS_HOST: redis
       REDIS_PORT: 6379
@@ -195,7 +195,7 @@ services:
       nextcloud:
         condition: service_healthy
     networks:
-      - uems-network
+      - ontrack-network
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:3001/api/v1/health || exit 1"]
       interval: 30s
@@ -215,8 +215,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.simple
-    image: uems-frontend:latest
-    container_name: uems-frontend
+    image: ontrack-frontend:latest
+    container_name: ontrack-frontend
     restart: unless-stopped
     environment:
       NODE_ENV: ${NODE_ENV:-development}
@@ -237,7 +237,7 @@ services:
       backend:
         condition: service_healthy
     networks:
-      - uems-network
+      - ontrack-network
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:3000 || exit 1"]
       interval: 30s
@@ -255,7 +255,7 @@ services:
   # ==========================================
   nginx:
     image: nginx:alpine
-    container_name: uems-nginx
+    container_name: ontrack-nginx
     restart: unless-stopped
     ports:
       - "${NGINX_PORT:-80}:80"
@@ -273,7 +273,7 @@ services:
       nextcloud:
         condition: service_healthy
     networks:
-      - uems-network
+      - ontrack-network
     healthcheck:
       test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:80/health || exit 1"]
       interval: 30s
@@ -290,9 +290,9 @@ services:
 # Networks
 # ==========================================
 networks:
-  uems-network:
+  ontrack-network:
     driver: bridge
-    name: uems-network
+    name: ontrack-network
     ipam:
       driver: default
       config:
@@ -304,43 +304,43 @@ networks:
 volumes:
   # PostgreSQL data
   postgres-data:
-    name: uems-postgres-data
+    name: ontrack-postgres-data
     driver: local
 
   # Redis data
   redis-data:
-    name: uems-redis-data
+    name: ontrack-redis-data
     driver: local
 
   # NextCloud PostgreSQL data
   nextcloud-db-data:
-    name: uems-nextcloud-db-data
+    name: ontrack-nextcloud-db-data
     driver: local
 
   # NextCloud application data
   nextcloud-data:
-    name: uems-nextcloud-data
+    name: ontrack-nextcloud-data
     driver: local
 
   nextcloud-apps:
-    name: uems-nextcloud-apps
+    name: ontrack-nextcloud-apps
     driver: local
 
   nextcloud-config:
-    name: uems-nextcloud-config
+    name: ontrack-nextcloud-config
     driver: local
 
   # Backend node_modules volume (prevents conflicts with host)
   backend-node-modules:
-    name: uems-backend-node-modules
+    name: ontrack-backend-node-modules
     driver: local
 
   # Frontend node_modules volume (prevents conflicts with host)
   frontend-node-modules:
-    name: uems-frontend-node-modules
+    name: ontrack-frontend-node-modules
     driver: local
 
   # Frontend .next build cache
   frontend-next:
-    name: uems-frontend-next
+    name: ontrack-frontend-next
     driver: local

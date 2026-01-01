@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-echo "🚀 Starting UEMS Backend..."
+echo "🚀 Starting OnTrack Backend..."
 
 # Display environment information
 echo "📋 Environment: NODE_ENV=${NODE_ENV:-not set}"
