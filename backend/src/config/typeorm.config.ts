@@ -13,8 +13,9 @@ export const typeOrmConfig = (
   database: configService.get('POSTGRES_DB', 'uems_db'),
   entities: [__dirname + '/../**/*.entity{.ts,.js}'],
   migrations: [__dirname + '/../database/migrations/*{.ts,.js}'],
-  synchronize: configService.get('NODE_ENV') === 'development',
-  logging: configService.get('NODE_ENV') === 'development',
+  synchronize: false,
+  migrationsRun: false,
+  logging: configService.get('NODE_ENV') === 'development' ? ['error', 'warn', 'migration'] : ['error'],
   ssl: configService.get('NODE_ENV') === 'production' ? { rejectUnauthorized: false } : false,
   extra: {
     max: configService.get('DB_POOL_MAX', 10),
