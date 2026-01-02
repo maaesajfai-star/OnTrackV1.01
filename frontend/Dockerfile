@@ -5,6 +5,7 @@ FROM node:20-alpine
 
 # Install system dependencies
 RUN apk add --no-cache \
+    libc6-compat \
     curl \
     python3 \
     make \
