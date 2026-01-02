@@ -116,7 +116,7 @@ After cloning this repository, run these 3 commands:
 docker compose up -d
 
 # 3. Verify it's running
-curl http://localhost/api/v1/health
+curl http://localhost/health
 ```
 
 **Done!** Access the application at:

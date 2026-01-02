@@ -16,9 +16,14 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Clean npm cache and install dependencies
+# Clean npm cache and install dependencies with retry logic
 RUN npm cache clean --force && \
-    npm install --legacy-peer-deps
+    npm config set fetch-retries 5 && \
+    npm config set fetch-retry-mintimeout 20000 && \
+    npm config set fetch-retry-maxtimeout 120000 && \
+    npm install --legacy-peer-deps || \
+    (sleep 10 && npm install --legacy-peer-deps) || \
+    (sleep 20 && npm install --legacy-peer-deps --registry=https://registry.npmjs.org/)
 
 # Copy source code
 COPY . .

@@ -19,9 +19,14 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Clean npm cache and install dependencies
+# Clean npm cache and install dependencies with retry logic
 RUN npm cache clean --force && \
-    npm install --legacy-peer-deps --production=false
+    npm config set fetch-retries 5 && \
+    npm config set fetch-retry-mintimeout 20000 && \
+    npm config set fetch-retry-maxtimeout 120000 && \
+    npm install --legacy-peer-deps --production=false || \
+    (sleep 10 && npm install --legacy-peer-deps --production=false) || \
+    (sleep 20 && npm install --legacy-peer-deps --production=false --registry=https://registry.npmjs.org/)
 
 # Copy entrypoint script
 COPY docker-entrypoint.sh /usr/local/bin/
@@ -39,9 +44,9 @@ RUN mkdir -p /app/uploads /app/logs
 # Expose port
 EXPOSE 3001
 
-# Health check
+# Health check (endpoint excluded from global prefix)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD curl -f http://localhost:3001/api/v1/health || exit 1
+  CMD curl -f http://localhost:3001/health || exit 1
 
 # Use entrypoint script (handles migrations and startup)
 ENTRYPOINT ["docker-entrypoint.sh"]

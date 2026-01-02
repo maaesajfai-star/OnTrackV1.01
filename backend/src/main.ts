@@ -28,8 +28,10 @@ async function bootstrap() {
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
-  // Global prefix
-  app.setGlobalPrefix(configService.get('API_PREFIX', 'api/v1'));
+  // Global prefix (exclude health endpoint for Docker healthchecks)
+  app.setGlobalPrefix(configService.get('API_PREFIX', 'api/v1'), {
+    exclude: ['health', '/'],
+  });
 
   // Versioning
   app.enableVersioning({
