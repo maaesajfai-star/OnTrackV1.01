@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe, VersioningType } from '@nestjs/common';
+import { ValidationPipe, VersioningType, RequestMethod } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import compression from 'compression';
@@ -30,7 +30,10 @@ async function bootstrap() {
 
   // Global prefix (exclude health endpoint for Docker healthchecks)
   app.setGlobalPrefix(configService.get('API_PREFIX', 'api/v1'), {
-    exclude: ['health', '/'],
+    exclude: [
+      { path: 'health', method: RequestMethod.GET },
+      { path: '', method: RequestMethod.GET },
+    ],
   });
 
   // Versioning

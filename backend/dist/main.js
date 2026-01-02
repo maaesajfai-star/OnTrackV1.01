@@ -32,7 +32,12 @@ async function bootstrap() {
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'Authorization'],
     });
-    app.setGlobalPrefix(configService.get('API_PREFIX', 'api/v1'));
+    app.setGlobalPrefix(configService.get('API_PREFIX', 'api/v1'), {
+        exclude: [
+            { path: 'health', method: common_1.RequestMethod.GET },
+            { path: '', method: common_1.RequestMethod.GET },
+        ],
+    });
     app.enableVersioning({
         type: common_1.VersioningType.URI,
         defaultVersion: '1',
@@ -4323,15 +4328,18 @@ const typeOrmConfig = (configService) => {
     const isDevelopment = nodeEnv === 'development';
     const srcPath = (0, path_1.join)(process.cwd(), 'src');
     const distPath = (0, path_1.join)(process.cwd(), 'dist');
-    const entitiesPath = isDevelopment
-        ? [(0, path_1.join)(srcPath, '**', '*.entity.ts')]
-        : [(0, path_1.join)(distPath, '**', '*.entity.js')];
-    const migrationsPath = isDevelopment
-        ? [(0, path_1.join)(srcPath, 'database', 'migrations', '*.ts')]
-        : [(0, path_1.join)(distPath, 'database', 'migrations', '*.js')];
+    const fs = __webpack_require__(75);
+    const isCompiledRuntime = fs.existsSync((0, path_1.join)(distPath, 'main.js'));
+    const entitiesPath = isCompiledRuntime
+        ? [(0, path_1.join)(distPath, '**', '*.entity.js')]
+        : [(0, path_1.join)(srcPath, '**', '*.entity.ts')];
+    const migrationsPath = isCompiledRuntime
+        ? [(0, path_1.join)(distPath, 'database', 'migrations', '*.js')]
+        : [(0, path_1.join)(srcPath, 'database', 'migrations', '*.ts')];
     console.log('[TypeORM] Configuration:', {
         nodeEnv,
         isDevelopment,
+        isCompiledRuntime,
         entitiesPath,
         migrationsPath,
     });
