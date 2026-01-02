@@ -1,26 +1,24 @@
 # Production Dockerfile for Next.js Frontend
-# Optimized for production deployment without bind mounts
+# Using Debian-based image for better Next.js SWC compatibility
 
-FROM node:20-alpine
+FROM node:20-slim
 
 # Install system dependencies
-RUN apk add --no-cache \
-    libc6-compat \
+RUN apt-get update && apt-get install -y \
     curl \
     python3 \
     make \
-    g++
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
 
-# Clean npm cache and install dependencies with fallback
+# Clean npm cache and install dependencies
 RUN npm cache clean --force && \
-    (npm install --legacy-peer-deps || \
-     npm install --force || \
-     npm install --no-optional --legacy-peer-deps)
+    npm install --legacy-peer-deps
 
 # Copy source code
 COPY . .
