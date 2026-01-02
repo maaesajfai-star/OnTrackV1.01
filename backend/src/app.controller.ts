@@ -19,7 +19,7 @@ export class AppController {
     return {
       message: 'OnTrack API v1.0.0',
       documentation: '/api/docs',
-      health: '/api/v1/health',
+      health: '/health',
     };
   }
 }
