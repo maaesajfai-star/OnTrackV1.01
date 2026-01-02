@@ -9,23 +9,28 @@ export const typeOrmConfig = (
   const nodeEnv = configService.get('NODE_ENV', 'development');
   const isDevelopment = nodeEnv === 'development';
 
-  // Use absolute paths from project root to avoid __dirname issues with ts-node
+  // Use absolute paths from project root
   const srcPath = join(process.cwd(), 'src');
   const distPath = join(process.cwd(), 'dist');
 
-  // In development with ts-node, always use .ts files from src
-  // In production, use .js files from dist
-  const entitiesPath = isDevelopment
-    ? [join(srcPath, '**', '*.entity.ts')]
-    : [join(distPath, '**', '*.entity.js')];
+  // Detect if we're running from dist/ (compiled) or src/ (ts-node)
+  // Check if the main.js file exists in dist/ to determine runtime mode
+  const fs = require('fs');
+  const isCompiledRuntime = fs.existsSync(join(distPath, 'main.js'));
 
-  const migrationsPath = isDevelopment
-    ? [join(srcPath, 'database', 'migrations', '*.ts')]
-    : [join(distPath, 'database', 'migrations', '*.js')];
+  // Use .js from dist/ if compiled, otherwise .ts from src/
+  const entitiesPath = isCompiledRuntime
+    ? [join(distPath, '**', '*.entity.js')]
+    : [join(srcPath, '**', '*.entity.ts')];
+
+  const migrationsPath = isCompiledRuntime
+    ? [join(distPath, 'database', 'migrations', '*.js')]
+    : [join(srcPath, 'database', 'migrations', '*.ts')];
 
   console.log('[TypeORM] Configuration:', {
     nodeEnv,
     isDevelopment,
+    isCompiledRuntime,
     entitiesPath,
     migrationsPath,
   });
