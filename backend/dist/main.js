@@ -16,9 +16,9 @@ const config_1 = __webpack_require__(4);
 const compression_1 = __importDefault(__webpack_require__(5));
 const helmet_1 = __importDefault(__webpack_require__(6));
 const app_module_1 = __webpack_require__(7);
-const http_exception_filter_1 = __webpack_require__(88);
-const transform_interceptor_1 = __webpack_require__(89);
-const logging_interceptor_1 = __webpack_require__(91);
+const http_exception_filter_1 = __webpack_require__(90);
+const transform_interceptor_1 = __webpack_require__(91);
+const logging_interceptor_1 = __webpack_require__(93);
 async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule, {
         logger: ['error', 'warn', 'log', 'debug', 'verbose'],
@@ -150,9 +150,10 @@ const users_module_1 = __webpack_require__(30);
 const crm_module_1 = __webpack_require__(37);
 const hrm_module_1 = __webpack_require__(58);
 const dms_module_1 = __webpack_require__(80);
-const app_controller_1 = __webpack_require__(85);
-const app_service_1 = __webpack_require__(86);
-const typeorm_config_1 = __webpack_require__(87);
+const health_module_1 = __webpack_require__(85);
+const app_controller_1 = __webpack_require__(87);
+const app_service_1 = __webpack_require__(88);
+const typeorm_config_1 = __webpack_require__(89);
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -178,6 +179,7 @@ exports.AppModule = AppModule = __decorate([
                         }],
                 }),
             }),
+            health_module_1.HealthModule,
             auth_module_1.AuthModule,
             users_module_1.UsersModule,
             crm_module_1.CrmModule,
@@ -4227,50 +4229,18 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-var _a;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.AppController = void 0;
+exports.HealthModule = void 0;
 const common_1 = __webpack_require__(2);
-const swagger_1 = __webpack_require__(3);
-const app_service_1 = __webpack_require__(86);
-let AppController = class AppController {
-    constructor(appService) {
-        this.appService = appService;
-    }
-    getHealth() {
-        return this.appService.getHealth();
-    }
-    getRoot() {
-        return {
-            message: 'OnTrack API v1.0.0',
-            documentation: '/api/docs',
-            health: '/api/v1/health',
-        };
-    }
+const health_controller_1 = __webpack_require__(86);
+let HealthModule = class HealthModule {
 };
-exports.AppController = AppController;
-__decorate([
-    (0, common_1.Get)('health'),
-    (0, swagger_1.ApiOperation)({ summary: 'Health check endpoint' }),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", void 0)
-], AppController.prototype, "getHealth", null);
-__decorate([
-    (0, common_1.Get)('/'),
-    (0, swagger_1.ApiOperation)({ summary: 'Root endpoint' }),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", void 0)
-], AppController.prototype, "getRoot", null);
-exports.AppController = AppController = __decorate([
-    (0, swagger_1.ApiTags)('health'),
-    (0, common_1.Controller)(),
-    __metadata("design:paramtypes", [typeof (_a = typeof app_service_1.AppService !== "undefined" && app_service_1.AppService) === "function" ? _a : Object])
-], AppController);
+exports.HealthModule = HealthModule;
+exports.HealthModule = HealthModule = __decorate([
+    (0, common_1.Module)({
+        controllers: [health_controller_1.HealthController],
+    })
+], HealthModule);
 
 
 /***/ }),
@@ -4287,35 +4257,132 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-var _a;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.AppService = void 0;
+exports.HealthController = void 0;
 const common_1 = __webpack_require__(2);
-const config_1 = __webpack_require__(4);
-let AppService = class AppService {
-    constructor(configService) {
-        this.configService = configService;
-    }
+const swagger_1 = __webpack_require__(3);
+let HealthController = class HealthController {
     getHealth() {
         return {
             status: 'ok',
             timestamp: new Date().toISOString(),
             uptime: process.uptime(),
-            environment: this.configService.get('NODE_ENV'),
+            environment: process.env.NODE_ENV || 'development',
             version: '1.0.0',
             service: 'OnTrack Backend API',
         };
     }
 };
-exports.AppService = AppService;
-exports.AppService = AppService = __decorate([
-    (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [typeof (_a = typeof config_1.ConfigService !== "undefined" && config_1.ConfigService) === "function" ? _a : Object])
-], AppService);
+exports.HealthController = HealthController;
+__decorate([
+    (0, common_1.Get)(),
+    (0, swagger_1.ApiOperation)({ summary: 'Health check endpoint for Docker healthchecks' }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'Service is healthy',
+        schema: {
+            type: 'object',
+            properties: {
+                status: { type: 'string', example: 'ok' },
+                timestamp: { type: 'string', example: '2026-01-03T12:00:00.000Z' },
+                uptime: { type: 'number', example: 123.45 },
+                environment: { type: 'string', example: 'production' },
+                version: { type: 'string', example: '1.0.0' },
+                service: { type: 'string', example: 'OnTrack Backend API' },
+            },
+        },
+    }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], HealthController.prototype, "getHealth", null);
+exports.HealthController = HealthController = __decorate([
+    (0, swagger_1.ApiTags)('health'),
+    (0, common_1.Controller)({
+        path: 'health',
+        version: common_1.VERSION_NEUTRAL,
+    })
+], HealthController);
 
 
 /***/ }),
 /* 87 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.AppController = void 0;
+const common_1 = __webpack_require__(2);
+const swagger_1 = __webpack_require__(3);
+const app_service_1 = __webpack_require__(88);
+let AppController = class AppController {
+    constructor(appService) {
+        this.appService = appService;
+    }
+    getRoot() {
+        return {
+            message: 'OnTrack API v1.0.0',
+            documentation: '/api/docs',
+            health: '/health',
+            api: '/api/v1',
+        };
+    }
+};
+exports.AppController = AppController;
+__decorate([
+    (0, common_1.Get)(),
+    (0, swagger_1.ApiOperation)({ summary: 'Root endpoint - API information' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], AppController.prototype, "getRoot", null);
+exports.AppController = AppController = __decorate([
+    (0, swagger_1.ApiTags)('root'),
+    (0, common_1.Controller)({
+        path: '',
+        version: common_1.VERSION_NEUTRAL,
+    }),
+    __metadata("design:paramtypes", [typeof (_a = typeof app_service_1.AppService !== "undefined" && app_service_1.AppService) === "function" ? _a : Object])
+], AppController);
+
+
+/***/ }),
+/* 88 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.AppService = void 0;
+const common_1 = __webpack_require__(2);
+let AppService = class AppService {
+    getHello() {
+        return 'OnTrack API v1.0.0';
+    }
+};
+exports.AppService = AppService;
+exports.AppService = AppService = __decorate([
+    (0, common_1.Injectable)()
+], AppService);
+
+
+/***/ }),
+/* 89 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -4379,7 +4446,7 @@ exports["default"] = dataSource;
 
 
 /***/ }),
-/* 88 */
+/* 90 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -4437,7 +4504,7 @@ exports.HttpExceptionFilter = HttpExceptionFilter = HttpExceptionFilter_1 = __de
 
 
 /***/ }),
-/* 89 */
+/* 91 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -4450,7 +4517,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.TransformInterceptor = void 0;
 const common_1 = __webpack_require__(2);
-const operators_1 = __webpack_require__(90);
+const operators_1 = __webpack_require__(92);
 let TransformInterceptor = class TransformInterceptor {
     intercept(context, next) {
         const request = context.switchToHttp().getRequest();
@@ -4470,13 +4537,13 @@ exports.TransformInterceptor = TransformInterceptor = __decorate([
 
 
 /***/ }),
-/* 90 */
+/* 92 */
 /***/ ((module) => {
 
 module.exports = require("rxjs/operators");
 
 /***/ }),
-/* 91 */
+/* 93 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -4489,7 +4556,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.LoggingInterceptor = void 0;
 const common_1 = __webpack_require__(2);
-const operators_1 = __webpack_require__(90);
+const operators_1 = __webpack_require__(92);
 let LoggingInterceptor = class LoggingInterceptor {
     constructor() {
         this.logger = new common_1.Logger('HTTP');

@@ -7,6 +7,7 @@ import { UsersModule } from './modules/users/users.module';
 import { CrmModule } from './modules/crm/crm.module';
 import { HrmModule } from './modules/hrm/hrm.module';
 import { DmsModule } from './modules/dms/dms.module';
+import { HealthModule } from './modules/health/health.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { typeOrmConfig } from './config/typeorm.config';
@@ -37,6 +38,9 @@ import { typeOrmConfig } from './config/typeorm.config';
         }],
       }),
     }),
+
+    // Health check module (must be before other modules for proper routing)
+    HealthModule,
 
     // Feature modules
     AuthModule,

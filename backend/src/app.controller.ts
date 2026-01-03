@@ -1,25 +1,23 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, VERSION_NEUTRAL } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AppService } from './app.service';
 
-@ApiTags('health')
-@Controller()
+@ApiTags('root')
+@Controller({
+  path: '',
+  version: VERSION_NEUTRAL,
+})
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
-  @Get('health')
-  @ApiOperation({ summary: 'Health check endpoint' })
-  getHealth() {
-    return this.appService.getHealth();
-  }
-
-  @Get('/')
-  @ApiOperation({ summary: 'Root endpoint' })
+  @Get()
+  @ApiOperation({ summary: 'Root endpoint - API information' })
   getRoot() {
     return {
       message: 'OnTrack API v1.0.0',
       documentation: '/api/docs',
       health: '/health',
+      api: '/api/v1',
     };
   }
 }
