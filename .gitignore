@@ -68,3 +68,4 @@ Thumbs.db
 .cache/
 .turbo/
 .eslintcache
+frontend/.next/
