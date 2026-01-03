@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 
 export default function LoginPage() {
   const router = useRouter()
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -23,7 +23,7 @@ export default function LoginPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ username, password }),
       })
 
       const data = await response.json()
@@ -60,17 +60,17 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email Address
+              <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+                Username or Email
               </label>
               <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 required
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                placeholder="admin@ontrack.local"
+                placeholder="Admin"
               />
             </div>
 
@@ -106,8 +106,8 @@ export default function LoginPage() {
 
           <div className="mt-4 p-4 bg-gray-100 rounded text-sm text-gray-600">
             <p className="font-semibold">Default Admin Credentials:</p>
-            <p>Email: admin@ontrack.local</p>
-            <p>Password: Admin@123!</p>
+            <p>Username: Admin</p>
+            <p>Password: AdminAdmin@123</p>
           </div>
         </div>
       </div>
