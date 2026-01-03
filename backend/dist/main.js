@@ -27,20 +27,16 @@ async function bootstrap() {
     app.use((0, helmet_1.default)());
     app.use((0, compression_1.default)());
     app.enableCors({
-        origin: configService.get('CORS_ORIGIN', 'http://localhost:3000'),
+        origin: true,
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     });
-    app.setGlobalPrefix(configService.get('API_PREFIX', 'api/v1'), {
+    app.setGlobalPrefix('api/v1', {
         exclude: [
             { path: 'health', method: common_1.RequestMethod.GET },
             { path: '', method: common_1.RequestMethod.GET },
         ],
-    });
-    app.enableVersioning({
-        type: common_1.VersioningType.URI,
-        defaultVersion: '1',
     });
     app.useGlobalPipes(new common_1.ValidationPipe({
         whitelist: true,
@@ -86,6 +82,7 @@ async function bootstrap() {
   🌐 Application: http://localhost:${port}
   📚 API Docs: http://localhost:${port}/api/docs
   🔧 Environment: ${configService.get('NODE_ENV', 'development')}
+  📍 API Routes: /api/v1/*
   ========================================
   `);
 }
@@ -4298,10 +4295,7 @@ __decorate([
 ], HealthController.prototype, "getHealth", null);
 exports.HealthController = HealthController = __decorate([
     (0, swagger_1.ApiTags)('health'),
-    (0, common_1.Controller)({
-        path: 'health',
-        version: common_1.VERSION_NEUTRAL,
-    })
+    (0, common_1.Controller)('health')
 ], HealthController);
 
 

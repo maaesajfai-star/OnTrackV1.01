@@ -1,11 +1,8 @@
-import { Controller, Get, VERSION_NEUTRAL } from '@nestjs/common';
+import { Controller, Get } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 
 @ApiTags('health')
-@Controller({
-  path: 'health',
-  version: VERSION_NEUTRAL,
-})
+@Controller('health')
 export class HealthController {
   @Get()
   @ApiOperation({ summary: 'Health check endpoint for Docker healthchecks' })

@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe, VersioningType, RequestMethod } from '@nestjs/common';
+import { ValidationPipe, RequestMethod } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import compression from 'compression';
@@ -20,27 +20,25 @@ async function bootstrap() {
   app.use(helmet());
   app.use(compression());
 
-  // CORS
+  // CORS - allow all origins for development
   app.enableCors({
-    origin: configService.get('CORS_ORIGIN', 'http://localhost:3000'),
+    origin: true,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   });
 
   // Global prefix (exclude health endpoint for Docker healthchecks)
-  app.setGlobalPrefix(configService.get('API_PREFIX', 'api/v1'), {
+  // Routes will be: /api/v1/auth/login, /api/v1/users, etc.
+  app.setGlobalPrefix('api/v1', {
     exclude: [
       { path: 'health', method: RequestMethod.GET },
       { path: '', method: RequestMethod.GET },
     ],
   });
 
-  // Versioning
-  app.enableVersioning({
-    type: VersioningType.URI,
-    defaultVersion: '1',
-  });
+  // NOTE: Removed URI versioning as it conflicts with the global prefix
+  // The global prefix 'api/v1' already includes the version
 
   // Global pipes
   app.useGlobalPipes(
@@ -99,6 +97,7 @@ async function bootstrap() {
   🌐 Application: http://localhost:${port}
   📚 API Docs: http://localhost:${port}/api/docs
   🔧 Environment: ${configService.get('NODE_ENV', 'development')}
+  📍 API Routes: /api/v1/*
   ========================================
   `);
 }
