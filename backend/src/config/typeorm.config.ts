@@ -1,7 +1,28 @@
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { DataSource, DataSourceOptions } from 'typeorm';
-import { join } from 'path';
+
+// Import all entities explicitly to avoid glob pattern issues in Docker
+import { User } from '../modules/users/entities/user.entity';
+import { Contact } from '../modules/crm/entities/contact.entity';
+import { Organization } from '../modules/crm/entities/organization.entity';
+import { Deal } from '../modules/crm/entities/deal.entity';
+import { Activity } from '../modules/crm/entities/activity.entity';
+import { Employee } from '../modules/hrm/entities/employee.entity';
+import { JobPosting } from '../modules/hrm/entities/job-posting.entity';
+import { Candidate } from '../modules/hrm/entities/candidate.entity';
+
+// Export all entities for use in other modules
+export const entities = [
+  User,
+  Contact,
+  Organization,
+  Deal,
+  Activity,
+  Employee,
+  JobPosting,
+  Candidate,
+];
 
 export const typeOrmConfig = (
   configService: ConfigService,
@@ -9,30 +30,11 @@ export const typeOrmConfig = (
   const nodeEnv = configService.get('NODE_ENV', 'development');
   const isDevelopment = nodeEnv === 'development';
 
-  // Use absolute paths from project root
-  const srcPath = join(process.cwd(), 'src');
-  const distPath = join(process.cwd(), 'dist');
-
-  // Detect if we're running from dist/ (compiled) or src/ (ts-node)
-  // Check if the main.js file exists in dist/ to determine runtime mode
-  const fs = require('fs');
-  const isCompiledRuntime = fs.existsSync(join(distPath, 'main.js'));
-
-  // Use .js from dist/ if compiled, otherwise .ts from src/
-  const entitiesPath = isCompiledRuntime
-    ? [join(distPath, '**', '*.entity.js')]
-    : [join(srcPath, '**', '*.entity.ts')];
-
-  const migrationsPath = isCompiledRuntime
-    ? [join(distPath, 'database', 'migrations', '*.js')]
-    : [join(srcPath, 'database', 'migrations', '*.ts')];
-
   console.log('[TypeORM] Configuration:', {
     nodeEnv,
     isDevelopment,
-    isCompiledRuntime,
-    entitiesPath,
-    migrationsPath,
+    entitiesCount: entities.length,
+    entities: entities.map(e => e.name),
   });
 
   return {
@@ -42,9 +44,8 @@ export const typeOrmConfig = (
     username: configService.get('POSTGRES_USER', 'ontrack_user'),
     password: configService.get('POSTGRES_PASSWORD'),
     database: configService.get('POSTGRES_DB', 'ontrack_db'),
-    entities: entitiesPath,
-    migrations: migrationsPath,
-    synchronize: isDevelopment, // Auto-create tables in development, NEVER in production
+    entities: entities, // Use explicit entity array instead of glob patterns
+    synchronize: isDevelopment, // Auto-create tables in development
     migrationsRun: false,
     logging: isDevelopment ? ['error', 'warn', 'migration'] : ['error'],
     ssl: configService.get('NODE_ENV') === 'production' ? { rejectUnauthorized: false } : false,
@@ -56,7 +57,7 @@ export const typeOrmConfig = (
   };
 };
 
-// DataSource for migrations (uses .ts files in development/migration context)
+// DataSource for migrations and CLI
 export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
   host: process.env.POSTGRES_HOST || 'localhost',
@@ -64,8 +65,9 @@ export const dataSourceOptions: DataSourceOptions = {
   username: process.env.POSTGRES_USER || 'ontrack_user',
   password: process.env.POSTGRES_PASSWORD,
   database: process.env.POSTGRES_DB || 'ontrack_db',
-  entities: [join(process.cwd(), 'src', '**', '*.entity.ts')],
-  migrations: [join(process.cwd(), 'src', 'database', 'migrations', '*.ts')],
+  entities: entities,
+  migrations: ['src/database/migrations/*.ts'],
+  synchronize: false,
 };
 
 const dataSource = new DataSource(dataSourceOptions);

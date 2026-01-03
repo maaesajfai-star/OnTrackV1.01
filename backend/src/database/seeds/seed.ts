@@ -1,13 +1,25 @@
 import { DataSource } from 'typeorm';
-import { dataSourceOptions } from '../../config/typeorm.config';
 import { User } from '../../modules/users/entities/user.entity';
+import { entities } from '../../config/typeorm.config';
 import * as bcrypt from 'bcrypt';
 
 async function seed() {
   console.log('🌱 Starting database seed...');
 
-  const dataSource = new DataSource(dataSourceOptions);
+  // Create datasource with explicit entities
+  const dataSource = new DataSource({
+    type: 'postgres',
+    host: process.env.POSTGRES_HOST || 'localhost',
+    port: parseInt(process.env.POSTGRES_PORT || '5432'),
+    username: process.env.POSTGRES_USER || 'ontrack_user',
+    password: process.env.POSTGRES_PASSWORD,
+    database: process.env.POSTGRES_DB || 'ontrack_db',
+    entities: entities,
+    synchronize: false,
+  });
+
   await dataSource.initialize();
+  console.log('✓ Database connection established');
 
   const userRepository = dataSource.getRepository(User);
 

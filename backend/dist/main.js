@@ -4381,28 +4381,34 @@ exports.AppService = AppService = __decorate([
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.dataSourceOptions = exports.typeOrmConfig = void 0;
+exports.dataSourceOptions = exports.typeOrmConfig = exports.entities = void 0;
 const typeorm_1 = __webpack_require__(15);
-const path_1 = __webpack_require__(79);
+const user_entity_1 = __webpack_require__(16);
+const contact_entity_1 = __webpack_require__(38);
+const organization_entity_1 = __webpack_require__(39);
+const deal_entity_1 = __webpack_require__(40);
+const activity_entity_1 = __webpack_require__(41);
+const employee_entity_1 = __webpack_require__(59);
+const job_posting_entity_1 = __webpack_require__(60);
+const candidate_entity_1 = __webpack_require__(61);
+exports.entities = [
+    user_entity_1.User,
+    contact_entity_1.Contact,
+    organization_entity_1.Organization,
+    deal_entity_1.Deal,
+    activity_entity_1.Activity,
+    employee_entity_1.Employee,
+    job_posting_entity_1.JobPosting,
+    candidate_entity_1.Candidate,
+];
 const typeOrmConfig = (configService) => {
     const nodeEnv = configService.get('NODE_ENV', 'development');
     const isDevelopment = nodeEnv === 'development';
-    const srcPath = (0, path_1.join)(process.cwd(), 'src');
-    const distPath = (0, path_1.join)(process.cwd(), 'dist');
-    const fs = __webpack_require__(75);
-    const isCompiledRuntime = fs.existsSync((0, path_1.join)(distPath, 'main.js'));
-    const entitiesPath = isCompiledRuntime
-        ? [(0, path_1.join)(distPath, '**', '*.entity.js')]
-        : [(0, path_1.join)(srcPath, '**', '*.entity.ts')];
-    const migrationsPath = isCompiledRuntime
-        ? [(0, path_1.join)(distPath, 'database', 'migrations', '*.js')]
-        : [(0, path_1.join)(srcPath, 'database', 'migrations', '*.ts')];
     console.log('[TypeORM] Configuration:', {
         nodeEnv,
         isDevelopment,
-        isCompiledRuntime,
-        entitiesPath,
-        migrationsPath,
+        entitiesCount: exports.entities.length,
+        entities: exports.entities.map(e => e.name),
     });
     return {
         type: 'postgres',
@@ -4411,8 +4417,7 @@ const typeOrmConfig = (configService) => {
         username: configService.get('POSTGRES_USER', 'ontrack_user'),
         password: configService.get('POSTGRES_PASSWORD'),
         database: configService.get('POSTGRES_DB', 'ontrack_db'),
-        entities: entitiesPath,
-        migrations: migrationsPath,
+        entities: exports.entities,
         synchronize: isDevelopment,
         migrationsRun: false,
         logging: isDevelopment ? ['error', 'warn', 'migration'] : ['error'],
@@ -4432,8 +4437,9 @@ exports.dataSourceOptions = {
     username: process.env.POSTGRES_USER || 'ontrack_user',
     password: process.env.POSTGRES_PASSWORD,
     database: process.env.POSTGRES_DB || 'ontrack_db',
-    entities: [(0, path_1.join)(process.cwd(), 'src', '**', '*.entity.ts')],
-    migrations: [(0, path_1.join)(process.cwd(), 'src', 'database', 'migrations', '*.ts')],
+    entities: exports.entities,
+    migrations: ['src/database/migrations/*.ts'],
+    synchronize: false,
 };
 const dataSource = new typeorm_1.DataSource(exports.dataSourceOptions);
 exports["default"] = dataSource;

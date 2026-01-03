@@ -1,5 +1,6 @@
 import { DataSource } from 'typeorm';
-import { dataSourceOptions } from '../config/typeorm.config';
+import { User } from '../modules/users/entities/user.entity';
+import { entities } from '../config/typeorm.config';
 import * as bcrypt from 'bcrypt';
 
 /**
@@ -9,7 +10,18 @@ import * as bcrypt from 'bcrypt';
 async function initializeDatabase() {
   console.log('🔧 Initializing database...');
 
-  const dataSource = new DataSource(dataSourceOptions);
+  // Create datasource with explicit entities
+  const dataSource = new DataSource({
+    type: 'postgres',
+    host: process.env.POSTGRES_HOST || 'localhost',
+    port: parseInt(process.env.POSTGRES_PORT || '5432'),
+    username: process.env.POSTGRES_USER || 'ontrack_user',
+    password: process.env.POSTGRES_PASSWORD,
+    database: process.env.POSTGRES_DB || 'ontrack_db',
+    entities: entities,
+    migrations: ['src/database/migrations/*.ts'],
+    synchronize: false,
+  });
 
   try {
     await dataSource.initialize();
@@ -29,32 +41,25 @@ async function initializeDatabase() {
     }
 
     // Check if admin user exists
-    const userRepository = dataSource.getRepository('User');
-    const adminExists = await userRepository
-      .createQueryBuilder('user')
-      .where('user.username = :username', { username: 'Admin' })
-      .getOne();
+    const userRepository = dataSource.getRepository(User);
+    const adminExists = await userRepository.findOne({ where: { username: 'Admin' } });
 
     if (!adminExists) {
       console.log('👤 Creating default Admin user...');
 
       const hashedPassword = await bcrypt.hash('AdminAdmin@123', 12);
 
-      await userRepository
-        .createQueryBuilder()
-        .insert()
-        .into('users')
-        .values({
-          username: 'Admin',
-          email: 'admin@ontrack.local',
-          password: hashedPassword,
-          firstName: 'System',
-          lastName: 'Administrator',
-          role: 'admin',
-          isActive: true,
-        })
-        .execute();
+      const admin = userRepository.create({
+        username: 'Admin',
+        email: 'admin@ontrack.local',
+        password: hashedPassword,
+        firstName: 'System',
+        lastName: 'Administrator',
+        role: 'admin',
+        isActive: true,
+      });
 
+      await userRepository.save(admin);
       console.log('✓ Admin user created: Admin / AdminAdmin@123');
     } else {
       console.log('✓ Admin user already exists');
