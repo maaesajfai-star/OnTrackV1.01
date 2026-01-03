@@ -1,7 +1,6 @@
 import { DataSource } from 'typeorm';
 import { User } from '../../modules/users/entities/user.entity';
 import { entities } from '../../config/typeorm.config';
-import * as bcrypt from 'bcrypt';
 
 async function seed() {
   console.log('🌱 Starting database seed...');
@@ -23,61 +22,65 @@ async function seed() {
 
   const userRepository = dataSource.getRepository(User);
 
+  // Delete existing admin to recreate with correct password
+  const existingAdmin = await userRepository.findOne({ where: { username: 'Admin' } });
+  if (existingAdmin) {
+    await userRepository.remove(existingAdmin);
+    console.log('✓ Removed existing Admin user for recreation');
+  }
+
   // Create universal Admin account
-  const adminExists = await userRepository.findOne({ where: { username: 'Admin' } });
+  // Password will be hashed by the @BeforeInsert hook in User entity
+  const admin = userRepository.create({
+    username: 'Admin',
+    email: 'admin@ontrack.local',
+    password: 'AdminAdmin@123', // Plain text - will be hashed by entity hook
+    firstName: 'System',
+    lastName: 'Administrator',
+    role: 'admin',
+    isActive: true,
+  });
+  await userRepository.save(admin);
+  console.log('✓ Universal Admin account created:');
+  console.log('  Username: Admin');
+  console.log('  Password: AdminAdmin@123');
+  console.log('  Email: admin@ontrack.local');
 
-  if (!adminExists) {
-    const admin = userRepository.create({
-      username: 'Admin',
-      email: 'admin@ontrack.local',
-      password: await bcrypt.hash('AdminAdmin@123', 12),
-      firstName: 'System',
-      lastName: 'Administrator',
-      role: 'admin',
-      isActive: true,
-    });
-    await userRepository.save(admin);
-    console.log('✓ Universal Admin account created:');
-    console.log('  Username: Admin');
-    console.log('  Password: AdminAdmin@123');
-    console.log('  Email: admin@ontrack.local');
-  } else {
-    console.log('✓ Admin user already exists');
+  // Delete and recreate HR Manager
+  const existingHr = await userRepository.findOne({ where: { username: 'hrmanager' } });
+  if (existingHr) {
+    await userRepository.remove(existingHr);
   }
 
-  // Create sample HR Manager
-  const hrExists = await userRepository.findOne({ where: { username: 'hrmanager' } });
+  const hrManager = userRepository.create({
+    username: 'hrmanager',
+    email: 'hr@ontrack.com',
+    password: 'HR@123456', // Plain text - will be hashed by entity hook
+    firstName: 'HR',
+    lastName: 'Manager',
+    role: 'hr_manager',
+    isActive: true,
+  });
+  await userRepository.save(hrManager);
+  console.log('✓ HR Manager created: hrmanager / HR@123456');
 
-  if (!hrExists) {
-    const hrManager = userRepository.create({
-      username: 'hrmanager',
-      email: 'hr@ontrack.com',
-      password: await bcrypt.hash('HR@123456', 12),
-      firstName: 'HR',
-      lastName: 'Manager',
-      role: 'hr_manager',
-      isActive: true,
-    });
-    await userRepository.save(hrManager);
-    console.log('✓ HR Manager created: hrmanager / HR@123456');
+  // Delete and recreate Sales User
+  const existingSales = await userRepository.findOne({ where: { username: 'salesuser' } });
+  if (existingSales) {
+    await userRepository.remove(existingSales);
   }
 
-  // Create sample Sales User
-  const salesExists = await userRepository.findOne({ where: { username: 'salesuser' } });
-
-  if (!salesExists) {
-    const salesUser = userRepository.create({
-      username: 'salesuser',
-      email: 'sales@ontrack.com',
-      password: await bcrypt.hash('Sales@123456', 12),
-      firstName: 'Sales',
-      lastName: 'User',
-      role: 'sales_user',
-      isActive: true,
-    });
-    await userRepository.save(salesUser);
-    console.log('✓ Sales User created: salesuser / Sales@123456');
-  }
+  const salesUser = userRepository.create({
+    username: 'salesuser',
+    email: 'sales@ontrack.com',
+    password: 'Sales@123456', // Plain text - will be hashed by entity hook
+    firstName: 'Sales',
+    lastName: 'User',
+    role: 'sales_user',
+    isActive: true,
+  });
+  await userRepository.save(salesUser);
+  console.log('✓ Sales User created: salesuser / Sales@123456');
 
   await dataSource.destroy();
   console.log('🎉 Database seeding completed!');

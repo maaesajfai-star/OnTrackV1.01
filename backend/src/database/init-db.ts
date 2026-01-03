@@ -1,7 +1,6 @@
 import { DataSource } from 'typeorm';
 import { User } from '../modules/users/entities/user.entity';
 import { entities } from '../config/typeorm.config';
-import * as bcrypt from 'bcrypt';
 
 /**
  * Database initialization script
@@ -47,12 +46,11 @@ async function initializeDatabase() {
     if (!adminExists) {
       console.log('👤 Creating default Admin user...');
 
-      const hashedPassword = await bcrypt.hash('AdminAdmin@123', 12);
-
+      // Password will be hashed by the @BeforeInsert hook in User entity
       const admin = userRepository.create({
         username: 'Admin',
         email: 'admin@ontrack.local',
-        password: hashedPassword,
+        password: 'AdminAdmin@123', // Plain text - will be hashed by entity hook
         firstName: 'System',
         lastName: 'Administrator',
         role: 'admin',
